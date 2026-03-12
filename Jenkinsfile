@@ -3,19 +3,15 @@ pipeline {
 
     options {
         disableConcurrentBuilds()
-        buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '10'))
+        buildDiscarder(logRotator(numToKeepStr: '10'))
         timestamps()
         timeout(time: 20, unit: 'MINUTES')
-    }
-
-    parameters {
-        booleanParam(name: 'DEPLOY', defaultValue: true, description: 'Deploy to Tomcat after successful build')
-        string(name: 'APP_URL', defaultValue: 'http://localhost:8080/hello-webapp', description: 'Application URL for verification')
     }
 
     environment {
         APP_NAME = 'hello-webapp'
         TOMCAT_HOME = '/opt/homebrew/opt/tomcat@9/libexec'
+        APP_URL = 'http://localhost:8080/hello-webapp'
     }
 
     stages {
@@ -27,14 +23,11 @@ pipeline {
 
         stage('Archive Artifact') {
             steps {
-                archiveArtifacts artifacts: 'target/*.war', fingerprint: true
+                archiveArtifacts artifacts: 'target/*.war'
             }
         }
 
         stage('Backup Existing WAR') {
-            when {
-                expression { return params.DEPLOY }
-            }
             steps {
                 sh '''
                     mkdir -p backups
@@ -46,9 +39,6 @@ pipeline {
         }
 
         stage('Deploy') {
-            when {
-                expression { return params.DEPLOY }
-            }
             steps {
                 sh '''
                     cp "target/${APP_NAME}.war" "$TOMCAT_HOME/webapps/${APP_NAME}.war"
@@ -57,12 +47,9 @@ pipeline {
         }
 
         stage('Verify Deployment') {
-            when {
-                expression { return params.DEPLOY }
-            }
             steps {
                 sh '''
-                    curl -fsS "${APP_URL}" > /dev/null
+                    curl -fsS "$APP_URL" > /dev/null
                 '''
             }
         }
